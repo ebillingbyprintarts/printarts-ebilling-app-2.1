@@ -1,23 +1,331 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>Dashboard</h2>
-<div class="dashboard">
-    <div class="card">Total Revenue: ₹{{ total }}</div>
-    <div class="card">Paid: ₹{{ paid }}</div>
-    <div class="card">Pending: ₹{{ pending }}</div>
+<style>
+.status-badge {
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-badge::before {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-paid {
+    color: var(--success-color);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.status-paid::before {
+    background-color: var(--success-color);
+}
+
+.status-pending {
+    color: var(--warning-color);
+    background: rgba(234, 179, 8, 0.1);
+}
+
+.status-pending::before {
+    background-color: var(--warning-color);
+}
+
+.status-overdue {
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.status-overdue::before {
+    background-color: var(--danger-color);
+}
+
+.status-draft {
+    color: var(--secondary-color);
+    background: rgba(107, 114, 128, 0.1);
+}
+
+.status-draft::before {
+    background-color: var(--secondary-color);
+}
+</style>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="icon" style="background: rgba(99, 102, 241, 0.1); color: var(--primary-color)">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h3 class="h5 mb-2">Total Revenue</h3>
+                <h2 class="h3 mb-0">₹{{ "{:,.2f}".format(total) }}</h2>
+                <p class="text-muted mb-0">+5.25% from last month</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="icon" style="background: rgba(34, 197, 94, 0.1); color: var(--success-color)">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 class="h5 mb-2">Paid Amount</h3>
+                <h2 class="h3 mb-0">₹{{ "{:,.2f}".format(paid) }}</h2>
+                <p class="text-muted mb-0">+2.5% from last month</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="icon" style="background: rgba(234, 179, 8, 0.1); color: var(--warning-color)">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="h5 mb-2">Pending Amount</h3>
+                <h2 class="h3 mb-0">₹{{ "{:,.2f}".format(pending) }}</h2>
+                <p class="text-muted mb-0">-1.5% from last month</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger-color)">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="h5 mb-2">Overdue Payments</h3>
+                <h2 class="h3 mb-0">{{ overdue_customers|length }}</h2>
+                <p class="text-muted mb-0">Needs attention</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4 mb-lg-0">
+            <div class="chart-container h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="h5 mb-0">Revenue Overview</h3>
+                    <div class="chart-legend d-flex gap-3">
+                        <span class="text-primary"><i class="fas fa-circle me-2"></i>Revenue</span>
+                        <span class="text-success"><i class="fas fa-circle me-2"></i>Paid</span>
+                    </div>
+                </div>
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="chart-container h-100">
+                <h3 class="h5 mb-3">Payment Status</h3>
+                <canvas id="paymentStatusChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions & Upcoming Dues -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="table-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="h5 mb-0">Recent Transactions</h3>
+                    <a href="{{ url_for('transactions') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions[:5] %}
+                        <tr>
+                            <td>{{ transaction.customer.name }}</td>
+                            <td>₹{{ "{:,.2f}".format(transaction.amount) }}</td>
+                            <td>{{ transaction.transaction_date.strftime('%d %b, %Y') }}</td>
+                            <td>
+                                {% set status_class = {
+                                    'Paid': 'status-paid',
+                                    'Pending': 'status-pending',
+                                    'Overdue': 'status-overdue',
+                                    'Draft': 'status-draft'
+                                } %}
+                                <span class="status-badge {{ status_class.get(transaction.status, 'status-pending') }}">
+                                    {{ transaction.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="table-container">
+                <h3 class="h5 mb-3">Upcoming Dues</h3>
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Due Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in upcoming_dues %}
+                        <tr>
+                            <td>{{ customer.name }}</td>
+                            <td>{{ customer.due_date.strftime('%d %b, %Y') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<h3>Upcoming Dues</h3>
-<ul>
-    {% for customer in upcoming_dues %}
-        <li>{{ customer.name }} - Due on {{ customer.due_date }}</li>
-    {% endfor %}
-</ul>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<h3 style="color: red;">Overdue Customers</h3>
-<ul>
-    {% for customer in overdue_customers %}
-        <li>{{ customer.name }} - Overdue since {{ customer.due_date }}</li>
-    {% endfor %}
-</ul>
+<!-- Dashboard Charts Initialization -->
+<script>
+    // Revenue Overview Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ revenue_labels|tojson }},
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: {{ revenue_data|tojson }},
+                    backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 1
+                },
+                {
+                    label: 'Paid',
+                    data: {{ paid_data|tojson }},
+                    backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        drawBorder: false,
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + value.toLocaleString();
+                        },
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    titleColor: '#000',
+                    titleFont: {
+                        weight: 'normal'
+                    },
+                    bodyColor: '#000',
+                    bodyFont: {
+                        size: 12
+                    },
+                    borderColor: 'rgba(0, 0, 0, 0.1)',
+                    borderWidth: 1,
+                    padding: 10,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Payment Status Chart
+    const statusCtx = document.getElementById('paymentStatusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Paid', 'Pending', 'Overdue'],
+            datasets: [{
+                data: [{{ paid }}, {{ pending }}, {{ sum([t.amount for t in transactions if t.status == 'Overdue']) }}],
+                backgroundColor: [
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(234, 179, 8, 0.8)',
+                    'rgba(239, 68, 68, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(34, 197, 94, 1)',
+                    'rgba(234, 179, 8, 1)',
+                    'rgba(239, 68, 68, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ₹' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            },
+            cutout: '70%'
+        }
+    });
+</script>
+
+
+
 {% endblock %}

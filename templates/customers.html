@@ -1,37 +1,88 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>Customers</h2>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ 'Edit' if customer else 'Add' }} Customer</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('customers', customer_id=customer.id) if customer else url_for('customers') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ customer.name if customer else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contact" class="form-label">Contact</label>
+                        <input type="text" class="form-control" id="contact" name="contact" value="{{ customer.contact if customer else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="due_date" class="form-label">Due Date</label>
+                        <input type="date" class="form-control" id="due_date" name="due_date" value="{{ customer.due_date.strftime('%Y-%m-%d') if customer and customer.due_date else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="Active" {{ 'selected' if customer and customer.status == 'Active' else '' }}>Active</option>
+                            <option value="Inactive" {{ 'selected' if customer and customer.status == 'Inactive' else '' }}>Inactive</option>
+                            <option value="Pending" {{ 'selected' if customer and customer.status == 'Pending' else '' }}>Pending</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">{{ 'Update' if customer else 'Add' }} Customer</button>
+                    {% if customer %}
+                    <a href="{{ url_for('customers') }}" class="btn btn-secondary">Cancel</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
 
-<form method="POST">
-    <input type="text" name="name" placeholder="Customer Name" value="{{ customer_to_edit.name if customer_to_edit }}">
-    <input type="text" name="contact" placeholder="Contact" value="{{ customer_to_edit.contact if customer_to_edit }}">
-    <input type="date" name="due_date" value="{{ customer_to_edit.due_date if customer_to_edit }}">
-    <select name="status">
-        <option value="Active" {% if customer_to_edit.status == 'Active' %}selected{% endif %}>Active</option>
-        <option value="Inactive" {% if customer_to_edit.status == 'Inactive' %}selected{% endif %}>Inactive</option>
-    </select>
-    <button type="submit">{{ 'Update' if customer_to_edit else 'Add' }}</button>
-</form>
-
-<table>
-    <tr>
-        <th>Name</th>
-        <th>Contact</th>
-        <th>Due Date</th>
-        <th>Status</th>
-        <th>Actions</th>
-    </tr>
-    {% for customer in customers %}
-    <tr>
-        <td>{{ customer.name }}</td>
-        <td>{{ customer.contact }}</td>
-        <td>{{ customer.due_date }}</td>
-        <td>{{ customer.status }}</td>
-        <td>
-            <a href="{{ url_for('manage_customers', customer_id=customer.id) }}">Edit</a> |
-            <a href="{{ url_for('delete_customer', customer_id=customer.id) }}">Delete</a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Customer List</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                            <tr>
+                                <td>{{ customer.name }}</td>
+                                <td>{{ customer.contact }}</td>
+                                <td>{{ customer.due_date.strftime('%Y-%m-%d') if customer.due_date else '-' }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if customer.status == 'Active' else 'danger' if customer.status == 'Inactive' else 'warning' }}">{{ customer.status }}</span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('customers', customer_id=customer.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('delete_customer', customer_id=customer.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this customer?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">No customers found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

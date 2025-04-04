@@ -1,47 +1,133 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>Transactions</h2>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">New Transaction</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="customer_id" class="form-label">Customer</label>
+                        <select class="form-select" id="customer_id" name="customer_id" required>
+                            <option value="">Select Customer</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount</label>
+                        <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="items" class="form-label">Items</label>
+                        <textarea class="form-control" id="items" name="items" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="service_id" class="form-label">Service</label>
+                        <select class="form-select" id="service_id" name="service_id" onchange="handleServiceChange(this.value)">
+                            <option value="">Select Service</option>
+                            {% for service in services %}
+                            <option value="{{ service.id }}">{{ service.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="variablePriceSection" style="display: none;">
+                        <label for="variable_price" class="form-label">Set Price</label>
+                        <input type="number" step="0.01" class="form-control" id="variable_price" name="variable_price">
+                        <small class="text-muted">Manager can set custom price for this service</small>
+                    </div>
 
-<form method="POST">
-    <select name="customer_id">
-        {% for customer in customers %}
-        <option value="{{ customer.id }}">{{ customer.name }}</option>
-        {% endfor %}
-    </select>
-    <input type="text" name="items" placeholder="Items / Service Name">
-    <input type="text" name="unit_type" placeholder="Unit (sq.ft / pcs / hours)">
-    <input type="number" name="amount" placeholder="Amount" step="0.01">
-    <input type="number" name="discount_percent" placeholder="Discount (%)" step="0.01">
-    <input type="number" name="discount_flat" placeholder="Flat Discount" step="0.01">
-    <select name="gst_type">
-        <option value="gst">GST</option>
-        <option value="non-gst">Non-GST</option>
-    </select>
-    <input type="number" name="paid" placeholder="Amount Paid" step="0.01">
-    <input type="date" name="transaction_date">
-    <button type="submit">Add Transaction</button>
-</form>
+                    <div class="mb-3">
+                        <label for="service_details" class="form-label">Service Details</label>
+                        <textarea class="form-control" id="service_details" name="service_details" rows="2"></textarea>
+                    </div>
 
-<table>
-    <tr>
-        <th>Customer</th>
-        <th>Items</th>
-        <th>Amount</th>
-        <th>Paid</th>
-        <th>GST Type</th>
-        <th>Date</th>
-        <th>Actions</th>
-    </tr>
-    {% for t in transactions %}
-    <tr>
-        <td>{{ t.customer.name }}</td>
-        <td>{{ t.items }}</td>
-        <td>{{ t.amount }}</td>
-        <td>{{ t.paid }}</td>
-        <td>{{ t.gst_type }}</td>
-        <td>{{ t.transaction_date }}</td>
-        <td><a href="{{ url_for('receipt', transaction_id=t.id) }}">Receipt</a></td>
-    </tr>
-    {% endfor %}
-</table>
+                    <div class="mb-3">
+                        <label for="unit_type" class="form-label">Unit Type</label>
+                        <select class="form-select" id="unit_type" name="unit_type">
+                            <option value="Pieces">Pieces</option>
+                            <option value="Kilograms">Kilograms</option>
+                            <option value="Meters">Meters</option>
+                            <option value="Hours">Hours</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="discount_percent" class="form-label">Discount (%)</label>
+                        <input type="number" step="0.01" class="form-control" id="discount_percent" name="discount_percent" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="discount_flat" class="form-label">Flat Discount</label>
+                        <input type="number" step="0.01" class="form-control" id="discount_flat" name="discount_flat" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="gst_type" class="form-label">GST Type</label>
+                        <select class="form-select" id="gst_type" name="gst_type">
+                            <option value="None">None</option>
+                            <option value="CGST-SGST">CGST-SGST</option>
+                            <option value="IGST">IGST</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paid" class="form-label">Paid Amount</label>
+                        <input type="number" step="0.01" class="form-control" id="paid" name="paid" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transaction_date" class="form-label">Transaction Date</label>
+                        <input type="date" class="form-control" id="transaction_date" name="transaction_date" value="{{ today }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Transaction</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Transaction List</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.transaction_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ transaction.customer.name }}</td>
+                                <td>₹{{ "%.2f"|format(transaction.amount) }}</td>
+                                <td>₹{{ "%.2f"|format(transaction.paid) }}</td>
+                                <td>₹{{ "%.2f"|format(transaction.amount - transaction.paid) }}</td>
+                                <td>
+                                    <a href="{{ url_for('transaction_receipt', transaction_id=transaction.id) }}" class="btn btn-sm btn-primary" target="_blank">
+                                        <i class="fas fa-file-pdf"></i> Receipt
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">No transactions found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

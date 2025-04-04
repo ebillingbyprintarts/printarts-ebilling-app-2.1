@@ -1,44 +1,134 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Receipt</title>
-    <style>
-        body { font-family: Arial, sans-serif; font-size: 14px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header img { height: 80px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        table, th, td { border: 1px solid #000; }
-        th, td { padding: 8px; text-align: left; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
-        <h2>Print Arts Billing</h2>
-        <p>{{ company_address }}</p>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-body">
+            <!-- Company Header -->
+            {% if settings and settings.logo %}
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename=settings.logo) }}" alt="Company Logo" style="max-height: 100px;">
+            </div>
+            {% endif %}
+            
+            {% if settings and settings.company_address %}
+            <div class="text-center mb-4">
+                {{ settings.company_address|safe }}
+            </div>
+            {% endif %}
+
+            <!-- Receipt Details -->
+            <div class="row mb-4">
+                <div class="col-6">
+                    <h5>Receipt No: #{{ transaction.id }}</h5>
+                    <p class="mb-1">Date: {{ transaction.transaction_date.strftime('%Y-%m-%d') }}</p>
+                </div>
+                <div class="col-6 text-end">
+                    <h5>Customer Details:</h5>
+                    <p class="mb-1">{{ transaction.customer.name }}</p>
+                    {% if transaction.customer.contact %}
+                    <p class="mb-1">{{ transaction.customer.contact }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Transaction Details -->
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Items</th>
+                            <th>Unit Type</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ transaction.items or 'N/A' }}</td>
+                            <td>{{ transaction.unit_type or 'N/A' }}</td>
+                            <td>₹{{ "%.2f"|format(transaction.amount) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Calculations -->
+            <div class="row justify-content-end">
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Subtotal:</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.amount) }}</td>
+                        </tr>
+                        {% if transaction.discount_percent > 0 %}
+                        <tr>
+                            <td>Discount ({{ "%.2f"|format(transaction.discount_percent) }}%):</td>
+                            <td class="text-end">-₹{{ "%.2f"|format(transaction.amount * transaction.discount_percent / 100) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if transaction.discount_flat > 0 %}
+                        <tr>
+                            <td>Flat Discount:</td>
+                            <td class="text-end">-₹{{ "%.2f"|format(transaction.discount_flat) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if transaction.gst_type != 'None' %}
+                        {% if transaction.gst_type == 'CGST-SGST' %}
+                        <tr>
+                            <td>CGST (9%):</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.amount * 0.09) }}</td>
+                        </tr>
+                        <tr>
+                            <td>SGST (9%):</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.amount * 0.09) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td>IGST (18%):</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.amount * 0.18) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endif %}
+                        <tr class="fw-bold">
+                            <td>Total Amount:</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.amount) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Paid Amount:</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.paid) }}</td>
+                        </tr>
+                        <tr class="fw-bold">
+                            <td>Balance:</td>
+                            <td class="text-end">₹{{ "%.2f"|format(transaction.amount - transaction.paid) }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bank Account Details -->
+            {% if settings and (settings.bank_name or settings.account_number) %}
+            <div class="mt-4 p-3 bg-light border rounded">
+                <h6 class="mb-3">Bank Account Details</h6>
+                {% if settings.bank_name %}<p class="mb-1">Bank: {{ settings.bank_name }}</p>{% endif %}
+                {% if settings.account_holder %}<p class="mb-1">Account Holder: {{ settings.account_holder }}</p>{% endif %}
+                {% if settings.account_number %}<p class="mb-1">Account Number: {{ settings.account_number }}</p>{% endif %}
+                {% if settings.ifsc_code %}<p class="mb-1">IFSC Code: {{ settings.ifsc_code }}</p>{% endif %}
+                {% if settings.swift_code %}<p class="mb-1">SWIFT Code: {{ settings.swift_code }}</p>{% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Footer -->
+            {% if settings and settings.receipt_footer %}
+            <div class="text-center mt-4 pt-4 border-top">
+                {{ settings.receipt_footer|safe }}
+            </div>
+            {% endif %}
+        </div>
     </div>
 
-    <p><strong>Customer:</strong> {{ transaction.customer.name }}</p>
-    <p><strong>Date:</strong> {{ transaction.transaction_date }}</p>
-
-    <table>
-        <tr>
-            <th>Service / Item</th>
-            <th>Amount</th>
-            <th>Discount</th>
-            <th>Paid</th>
-            <th>GST Type</th>
-        </tr>
-        <tr>
-            <td>{{ transaction.items }}</td>
-            <td>{{ transaction.amount }}</td>
-            <td>{% if transaction.discount_flat %}{{ transaction.discount_flat }}{% elif transaction.discount_percent %}{{ transaction.discount_percent }}%{% else %}-{% endif %}</td>
-            <td>{{ transaction.paid }}</td>
-            <td>{{ transaction.gst_type }}</td>
-        </tr>
-    </table>
-
-    <p style="margin-top: 30px;">{{ company_footer }}</p>
-</body>
-</html>
+    <!-- Print Button -->
+    <div class="text-center mt-4">
+        <button onclick="window.print()" class="btn btn-primary">Print Receipt</button>
+    </div>
+</div>
+{% endblock %}
