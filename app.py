@@ -11,22 +11,18 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///billing.db'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-
+app.config['UPLOAD_FOLDER'] = 'uploads'
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Models
+# MODELS
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(150), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
-
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
@@ -39,7 +35,7 @@ class Customer(db.Model):
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     amount = db.Column(db.Float, nullable=False)
     items = db.Column(db.String(200))
     unit_type = db.Column(db.String(50))
@@ -48,20 +44,22 @@ class Transaction(db.Model):
     gst_type = db.Column(db.String(10))
     paid = db.Column(db.Float)
     transaction_date = db.Column(db.Date, default=datetime.utcnow)
-    customer = db.relationship('Customer')
+    walkin_name = db.Column(db.String(100))
+
+    customer = db.relationship('Customer', backref='transactions', lazy=True)
 
 class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    company_name = db.Column(db.String(150))
-    address = db.Column(db.Text)
+    logo = db.Column(db.String(100))
+    company_address = db.Column(db.Text)
     footer_note = db.Column(db.Text)
-    logo_path = db.Column(db.String(200))
 
+# LOGIN
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Routes
+# ROUTES
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -69,8 +67,7 @@ def login():
         if user and user.check_password(request.form['password']):
             login_user(user)
             return redirect(url_for('home'))
-        else:
-            flash("Invalid credentials", "danger")
+        flash("Invalid login.")
     return render_template('login.html')
 
 @app.route('/logout')
@@ -82,12 +79,12 @@ def logout():
 @app.route('/')
 @login_required
 def home():
-    total = db.session.query(db.func.sum(Transaction.amount)).scalar() or 0
-    paid = db.session.query(db.func.sum(Transaction.paid)).scalar() or 0
-    pending = total - paid
+    total_revenue = db.session.query(db.func.sum(Transaction.amount)).scalar() or 0
+    total_paid = db.session.query(db.func.sum(Transaction.paid)).scalar() or 0
+    pending = total_revenue - total_paid
     upcoming_dues = Customer.query.filter(Customer.due_date >= datetime.today()).order_by(Customer.due_date).limit(5).all()
     overdue_customers = Customer.query.filter(Customer.due_date < datetime.today()).all()
-    return render_template('home.html', total=total, paid=paid, pending=pending, upcoming_dues=upcoming_dues, overdue_customers=overdue_customers)
+    return render_template('home.html', total=total_revenue, paid=total_paid, pending=pending, upcoming_dues=upcoming_dues, overdue_customers=overdue_customers)
 
 @app.route('/customers', methods=['GET', 'POST'])
 @app.route('/customers/<int:customer_id>', methods=['GET', 'POST'])
@@ -97,9 +94,8 @@ def manage_customers(customer_id=None):
     if request.method == 'POST':
         name = request.form['name']
         contact = request.form['contact']
-        due_date_str = request.form['due_date']
+        due_date = datetime.strptime(request.form['due_date'], '%Y-%m-%d') if request.form['due_date'] else None
         status = request.form['status']
-        due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date() if due_date_str else None
 
         if customer_id:
             customer = Customer.query.get_or_404(customer_id)
@@ -134,28 +130,29 @@ def transactions():
     customers = Customer.query.all()
     if request.method == 'POST':
         transaction = Transaction(
-            customer_id=request.form['customer_id'],
-            amount=request.form['amount'],
+            customer_id=request.form.get('customer_id') or None,
+            walkin_name=request.form.get('walkin_name') or None,
+            amount=float(request.form['amount']),
             items=request.form['items'],
             unit_type=request.form['unit_type'],
-            discount_percent=request.form.get('discount_percent') or 0,
-            discount_flat=request.form.get('discount_flat') or 0,
+            discount_percent=float(request.form.get('discount_percent') or 0),
+            discount_flat=float(request.form.get('discount_flat') or 0),
             gst_type=request.form['gst_type'],
-            paid=request.form['paid'],
+            paid=float(request.form['paid']),
             transaction_date=datetime.strptime(request.form['transaction_date'], '%Y-%m-%d')
         )
         db.session.add(transaction)
         db.session.commit()
         return redirect(url_for('transactions'))
 
-    all_transactions = Transaction.query.all()
+    all_transactions = Transaction.query.order_by(Transaction.transaction_date.desc()).all()
     return render_template('transaction_list.html', transactions=all_transactions, customers=customers)
 
 @app.route('/transactions/delete/<int:transaction_id>')
 @login_required
 def delete_transaction(transaction_id):
-    transaction = Transaction.query.get_or_404(transaction_id)
-    db.session.delete(transaction)
+    t = Transaction.query.get_or_404(transaction_id)
+    db.session.delete(t)
     db.session.commit()
     return redirect(url_for('transactions'))
 
@@ -164,11 +161,7 @@ def delete_transaction(transaction_id):
 def receipt(transaction_id):
     transaction = Transaction.query.get_or_404(transaction_id)
     settings = Settings.query.first()
-    rendered = render_template('receipt.html', transaction=transaction, settings=settings)
-    pdf = BytesIO()
-    pisa.CreatePDF(BytesIO(rendered.encode('utf-8')), dest=pdf)
-    pdf.seek(0)
-    return send_file(pdf, download_name='receipt.pdf', as_attachment=True)
+    return render_template('receipt.html', transaction=transaction, settings=settings)
 
 @app.route('/transactions/export/csv')
 @login_required
@@ -176,46 +169,62 @@ def export_csv():
     transactions = Transaction.query.all()
     output = BytesIO()
     writer = csv.writer(output)
-    writer.writerow(['ID', 'Customer', 'Amount', 'Paid', 'Date'])
+    writer.writerow(['ID', 'Customer/Walk-in', 'Amount', 'Paid', 'Date'])
     for t in transactions:
-        writer.writerow([t.id, t.customer.name, t.amount, t.paid, t.transaction_date])
+        name = t.customer.name if t.customer else t.walkin_name or "Walk-in"
+        writer.writerow([t.id, name, t.amount, t.paid, t.transaction_date])
     output.seek(0)
     return send_file(output, mimetype='text/csv', download_name='transactions.csv', as_attachment=True)
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
-    settings = Settings.query.first()
+    s = Settings.query.first()
     if request.method == 'POST':
-        if not settings:
-            settings = Settings()
-
-        settings.company_name = request.form['company_name']
-        settings.address = request.form['address']
-        settings.footer_note = request.form['footer_note']
-
-        logo = request.files['logo']
-        if logo and logo.filename != '':
-            logo_path = os.path.join(app.config['UPLOAD_FOLDER'], logo.filename)
-            logo.save(logo_path)
-            settings.logo_path = logo_path
-
-        db.session.add(settings)
+        if not s:
+            s = Settings()
+        s.company_address = request.form['company_address']
+        s.footer_note = request.form['footer_note']
+        if 'logo' in request.files:
+            file = request.files['logo']
+            if file.filename:
+                filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+                file.save(filename)
+                s.logo = file.filename
+        db.session.add(s)
         db.session.commit()
-        flash('Settings updated successfully', 'success')
+        flash("Settings saved!")
         return redirect(url_for('settings'))
+    return render_template('settings.html', settings=s)
 
-    return render_template('settings.html', settings=settings)
+@app.route('/walkin', methods=['GET', 'POST'])
+@login_required
+def walkin():
+    if request.method == 'POST':
+        transaction = Transaction(
+            walkin_name=request.form['walkin_name'],
+            amount=float(request.form['amount']),
+            items=request.form['items'],
+            unit_type=request.form['unit_type'],
+            discount_percent=float(request.form.get('discount_percent') or 0),
+            discount_flat=float(request.form.get('discount_flat') or 0),
+            gst_type=request.form['gst_type'],
+            paid=float(request.form['paid']),
+            transaction_date=datetime.strptime(request.form['transaction_date'], '%Y-%m-%d')
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        return redirect(url_for('transactions'))
+    return render_template('walkin.html')
 
-# Run Server
+# RUN
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', is_admin=True)
+            admin = User(username='admin')
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
             print("🔧 Default admin user created. Login with admin/admin123")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True)

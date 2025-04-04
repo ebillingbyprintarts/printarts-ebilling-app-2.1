@@ -1,52 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Receipt</title>
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    h2 { text-align: center; }
-    .details, .footer { margin-top: 20px; }
-    .footer { text-align: center; margin-top: 40px; font-size: 0.8em; }
-    .logo { width: 120px; }
-    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-  </style>
+    <meta charset="utf-8">
+    <title>Receipt</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 14px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header img { height: 80px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid #000; }
+        th, td { padding: 8px; text-align: left; }
+    </style>
 </head>
 <body>
-  {% if settings.logo_path %}
-    <div style="text-align:center;">
-      <img src="{{ settings.logo_path }}" class="logo"><br>
+    <div class="header">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+        <h2>Print Arts Billing</h2>
+        <p>{{ company_address }}</p>
     </div>
-  {% endif %}
 
-  <h2>Receipt - #{{ transaction.id }}</h2>
-  <div class="details">
-    <strong>Customer:</strong> {{ transaction.customer.name }}<br>
-    <strong>Contact:</strong> {{ transaction.customer.contact or 'N/A' }}<br>
-    <strong>Date:</strong> {{ transaction.transaction_date.strftime('%Y-%m-%d') }}<br>
-    <strong>GST Type:</strong> {{ transaction.gst_type }}
-  </div>
+    <p><strong>Customer:</strong> {{ transaction.customer.name }}</p>
+    <p><strong>Date:</strong> {{ transaction.transaction_date }}</p>
 
-  <table>
-    <thead><tr><th>Items</th><th>Unit</th><th>Amount</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>{{ transaction.items }}</td>
-        <td>{{ transaction.unit_type }}</td>
-        <td>₹ {{ "%.2f"|format(transaction.amount) }}</td>
-      </tr>
-    </tbody>
-  </table>
+    <table>
+        <tr>
+            <th>Service / Item</th>
+            <th>Amount</th>
+            <th>Discount</th>
+            <th>Paid</th>
+            <th>GST Type</th>
+        </tr>
+        <tr>
+            <td>{{ transaction.items }}</td>
+            <td>{{ transaction.amount }}</td>
+            <td>{% if transaction.discount_flat %}{{ transaction.discount_flat }}{% elif transaction.discount_percent %}{{ transaction.discount_percent }}%{% else %}-{% endif %}</td>
+            <td>{{ transaction.paid }}</td>
+            <td>{{ transaction.gst_type }}</td>
+        </tr>
+    </table>
 
-  <div class="details">
-    <strong>Discount:</strong> {{ transaction.discount_percent }}% + ₹{{ transaction.discount_flat }}<br>
-    <strong>Paid:</strong> ₹{{ transaction.paid }}<br>
-    <strong>Pending:</strong> ₹{{ transaction.amount - transaction.paid }}<br>
-  </div>
-
-  <div class="footer">
-    {{ settings.footer_text if settings else 'Thank you for your business!' }}
-  </div>
+    <p style="margin-top: 30px;">{{ company_footer }}</p>
 </body>
 </html>

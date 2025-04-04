@@ -1,24 +1,17 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2>⚙️ Settings</h2>
-  <form method="POST" enctype="multipart/form-data">
-    <div class="mb-3">
-      <label class="form-label">Upload Logo</label>
-      <input type="file" class="form-control" name="logo">
-      {% if settings.logo_path %}
-        <img src="{{ settings.logo_path }}" class="mt-2" style="height: 100px;">
-      {% endif %}
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Company Address</label>
-      <textarea name="company_address" class="form-control" rows="2">{{ settings.company_address if settings else '' }}</textarea>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Receipt Footer Text</label>
-      <textarea name="footer_text" class="form-control" rows="2">{{ settings.footer_text if settings else '' }}</textarea>
-    </div>
-    <button type="submit" class="btn btn-primary">💾 Save Settings</button>
-  </form>
-</div>
+<h2>Company Settings</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    <label>Company Address:</label>
+    <textarea name="company_address" required>{{ settings.company_address if settings else '' }}</textarea>
+
+    <label>Footer Note:</label>
+    <textarea name="company_footer" required>{{ settings.company_footer if settings else '' }}</textarea>
+
+    <label>Upload Logo:</label>
+    <input type="file" name="logo">
+
+    <button type="submit">Update Settings</button>
+</form>
 {% endblock %}

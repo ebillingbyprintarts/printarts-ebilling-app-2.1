@@ -1,52 +1,23 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">📊 Dashboard</h2>
-  <div class="row text-center">
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">Total Revenue</div>
-        <div class="card-body"><h4>₹ {{ total }}</h4></div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">Paid</div>
-        <div class="card-body"><h4>₹ {{ paid }}</h4></div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">Pending</div>
-        <div class="card-body"><h4>₹ {{ pending }}</h4></div>
-      </div>
-    </div>
-  </div>
-
-  <hr class="my-4">
-
-  <h5>Upcoming Due Customers</h5>
-  <ul class="list-group mb-3">
-    {% for customer in upcoming_dues %}
-      <li class="list-group-item d-flex justify-content-between">
-        {{ customer.name }} - {{ customer.due_date.strftime('%Y-%m-%d') }}
-        <span class="badge bg-secondary">{{ customer.status }}</span>
-      </li>
-    {% else %}
-      <li class="list-group-item">No upcoming dues</li>
-    {% endfor %}
-  </ul>
-
-  <h5>Overdue Customers</h5>
-  <ul class="list-group">
-    {% for customer in overdue_customers %}
-      <li class="list-group-item d-flex justify-content-between">
-        {{ customer.name }} - {{ customer.due_date.strftime('%Y-%m-%d') }}
-        <span class="badge bg-danger">Overdue</span>
-      </li>
-    {% else %}
-      <li class="list-group-item">No overdue customers</li>
-    {% endfor %}
-  </ul>
+<h2>Dashboard</h2>
+<div class="dashboard">
+    <div class="card">Total Revenue: ₹{{ total }}</div>
+    <div class="card">Paid: ₹{{ paid }}</div>
+    <div class="card">Pending: ₹{{ pending }}</div>
 </div>
+
+<h3>Upcoming Dues</h3>
+<ul>
+    {% for customer in upcoming_dues %}
+        <li>{{ customer.name }} - Due on {{ customer.due_date }}</li>
+    {% endfor %}
+</ul>
+
+<h3 style="color: red;">Overdue Customers</h3>
+<ul>
+    {% for customer in overdue_customers %}
+        <li>{{ customer.name }} - Overdue since {{ customer.due_date }}</li>
+    {% endfor %}
+</ul>
 {% endblock %}

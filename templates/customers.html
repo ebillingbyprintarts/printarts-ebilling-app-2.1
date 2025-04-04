@@ -1,56 +1,37 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">👥 Customers</h2>
+<h2>Customers</h2>
 
-  <form method="POST" class="mb-4">
-    <input type="hidden" name="customer_id" value="{{ customer_to_edit.id if customer_to_edit else '' }}">
-    <div class="row g-2">
-      <div class="col-md-3">
-        <input type="text" class="form-control" name="name" placeholder="Name" required value="{{ customer_to_edit.name if customer_to_edit else '' }}">
-      </div>
-      <div class="col-md-3">
-        <input type="text" class="form-control" name="contact" placeholder="Contact" value="{{ customer_to_edit.contact if customer_to_edit else '' }}">
-      </div>
-      <div class="col-md-3">
-        <input type="date" class="form-control" name="due_date" value="{{ customer_to_edit.due_date if customer_to_edit else '' }}">
-      </div>
-      <div class="col-md-2">
-        <select class="form-select" name="status">
-          <option value="Pending" {% if customer_to_edit and customer_to_edit.status == "Pending" %}selected{% endif %}>Pending</option>
-          <option value="Paid" {% if customer_to_edit and customer_to_edit.status == "Paid" %}selected{% endif %}>Paid</option>
-        </select>
-      </div>
-      <div class="col-md-1">
-        <button type="submit" class="btn btn-success w-100">💾</button>
-      </div>
-    </div>
-  </form>
+<form method="POST">
+    <input type="text" name="name" placeholder="Customer Name" value="{{ customer_to_edit.name if customer_to_edit }}">
+    <input type="text" name="contact" placeholder="Contact" value="{{ customer_to_edit.contact if customer_to_edit }}">
+    <input type="date" name="due_date" value="{{ customer_to_edit.due_date if customer_to_edit }}">
+    <select name="status">
+        <option value="Active" {% if customer_to_edit.status == 'Active' %}selected{% endif %}>Active</option>
+        <option value="Inactive" {% if customer_to_edit.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+    <button type="submit">{{ 'Update' if customer_to_edit else 'Add' }}</button>
+</form>
 
-  <table class="table table-bordered">
-    <thead class="table-secondary">
-      <tr>
+<table>
+    <tr>
         <th>Name</th>
         <th>Contact</th>
         <th>Due Date</th>
         <th>Status</th>
         <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in customers %}
-        <tr>
-          <td>{{ c.name }}</td>
-          <td>{{ c.contact }}</td>
-          <td>{{ c.due_date }}</td>
-          <td>{{ c.status }}</td>
-          <td>
-            <a href="{{ url_for('manage_customers', customer_id=c.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-            <a href="{{ url_for('delete_customer', customer_id=c.id) }}" class="btn btn-sm btn-outline-danger">Delete</a>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+    </tr>
+    {% for customer in customers %}
+    <tr>
+        <td>{{ customer.name }}</td>
+        <td>{{ customer.contact }}</td>
+        <td>{{ customer.due_date }}</td>
+        <td>{{ customer.status }}</td>
+        <td>
+            <a href="{{ url_for('manage_customers', customer_id=customer.id) }}">Edit</a> |
+            <a href="{{ url_for('delete_customer', customer_id=customer.id) }}">Delete</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
 {% endblock %}
