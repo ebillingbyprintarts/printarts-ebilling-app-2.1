@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Receipt</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    h2 { text-align: center; }
+    .details, .footer { margin-top: 20px; }
+    .footer { text-align: center; margin-top: 40px; font-size: 0.8em; }
+    .logo { width: 120px; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  {% if settings.logo_path %}
+    <div style="text-align:center;">
+      <img src="{{ settings.logo_path }}" class="logo"><br>
+    </div>
+  {% endif %}
+
+  <h2>Receipt - #{{ transaction.id }}</h2>
+  <div class="details">
+    <strong>Customer:</strong> {{ transaction.customer.name }}<br>
+    <strong>Contact:</strong> {{ transaction.customer.contact or 'N/A' }}<br>
+    <strong>Date:</strong> {{ transaction.transaction_date.strftime('%Y-%m-%d') }}<br>
+    <strong>GST Type:</strong> {{ transaction.gst_type }}
+  </div>
+
+  <table>
+    <thead><tr><th>Items</th><th>Unit</th><th>Amount</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>{{ transaction.items }}</td>
+        <td>{{ transaction.unit_type }}</td>
+        <td>₹ {{ "%.2f"|format(transaction.amount) }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="details">
+    <strong>Discount:</strong> {{ transaction.discount_percent }}% + ₹{{ transaction.discount_flat }}<br>
+    <strong>Paid:</strong> ₹{{ transaction.paid }}<br>
+    <strong>Pending:</strong> ₹{{ transaction.amount - transaction.paid }}<br>
+  </div>
+
+  <div class="footer">
+    {{ settings.footer_text if settings else 'Thank you for your business!' }}
+  </div>
+</body>
+</html>
